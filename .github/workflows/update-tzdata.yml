@@ -1,0 +1,136 @@
+name: Update tzdata
+
+# Rebuild data/ from the latest (or specified) IANA tzdb release.
+# Dogfoods cl-stack-http × http-backend-async × event-backend-libuv for the
+# download; zic/tar remain the database-build special case.
+# Bootstrap mirrors http-backend-async test.yml (setup-client / setup-roswell /
+# OpenSSL overlay staging).
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"   # weekly Monday 06:17 UTC
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "tzdb release (e.g. 2026c). Empty = latest."
+        required: false
+        default: ""
+      include_backzone:
+        description: "Also compile backzone (pre-1970 extras)"
+        required: false
+        default: "false"
+        type: choice
+        options: ["false", "true"]
+
+concurrency:
+  group: cl-stack-tzdata-update
+  cancel-in-progress: false
+
+env:
+  SBCL_VERSION: 2.6.7
+  ROSWELL_VERSION: "26.02.116"
+  HTTP_ASYNC_EVENT_BACKEND: libuv
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: egao1980/cl-repository/.github/actions/setup-client@main
+
+      - uses: egao1980/cl-repository/.github/actions/setup-roswell@main
+        with:
+          sbcl-version: ${{ env.SBCL_VERSION }}
+          roswell-version: ${{ env.ROSWELL_VERSION }}
+
+      - name: Install zic (database build special case)
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends tzdata
+
+      - name: cl-repo install update deps
+        shell: bash
+        run: ros -l scripts/ci-install-update.lisp -q
+
+      - name: Stage OpenSSL overlay
+        shell: bash
+        run: |
+          echo "${GITHUB_TOKEN}" | oras login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+          mkdir -p /tmp/ssl-pull /tmp/ssl-native
+          : "${CL_STACK_SSL_VERSION:?CL_STACK_SSL_VERSION empty — ci-install-update must set GITHUB_ENV}"
+          REF="ghcr.io/egao1980/cl-systems/cl-stack-ssl:${CL_STACK_SSL_VERSION}"
+          ok=0
+          for attempt in 1 2 3 4 5; do
+            rm -rf /tmp/ssl-pull/* /tmp/ssl-native/*
+            if oras pull "${REF}" --platform linux/amd64 -o /tmp/ssl-pull; then
+              ok=1
+              break
+            fi
+            echo "oras pull attempt ${attempt} failed; sleep $((attempt * 4))s" >&2
+            sleep $((attempt * 4))
+          done
+          [ "$ok" = 1 ] || { echo "oras pull failed for ${REF}" >&2; exit 1; }
+          tar -xzf /tmp/ssl-pull/native-library.tar.gz -C /tmp/ssl-native
+          NAT="$(find /tmp/ssl-native -type d -name native | head -1)"
+          : "${NAT:?native/ not found in cl-stack-ssl overlay}"
+          echo "OPENSSL_NATIVE=${NAT}" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=${NAT}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
+          ls -la "${NAT}"
+
+      - name: Rebuild data/ from IANA
+        shell: bash
+        env:
+          INCLUDE_BACKZONE: ${{ inputs.include_backzone || 'false' }}
+        run: |
+          ARGS=()
+          if [ -n "${{ inputs.version }}" ]; then
+            ARGS+=("${{ inputs.version }}")
+          fi
+          if [ "${#ARGS[@]}" -gt 0 ]; then
+            ros -l scripts/update-tzdata.lisp -q -- "${ARGS[@]}"
+          else
+            ros -l scripts/update-tzdata.lisp -q
+          fi
+
+      - name: Regenerate abbreviation index
+        shell: bash
+        run: ros -l scripts/gen-abbreviations.lisp -q
+
+      - name: Bump .asd :version from tzdb letter release
+        shell: bash
+        run: |
+          VER="$(tr -d '[:space:]' < data/VERSION)"
+          YEAR="${VER:0:4}"
+          LETTER="${VER:4:1}"
+          MINOR=$(( $(printf '%d' "'${LETTER}") - $(printf '%d' "'a") + 1 ))
+          ASDF_VER="${YEAR}.${MINOR}.0"
+          echo "tzdb=${VER} asdf=${ASDF_VER}"
+          python3 - <<PY
+          import pathlib, re
+          ver = "${ASDF_VER}"
+          path = pathlib.Path("cl-stack-tzdata.asd")
+          text = path.read_text()
+          text2, n = re.subn(r'(:version\s*)"[^"]*"', rf'\1"{ver}"', text, count=1)
+          if n != 1:
+              raise SystemExit("failed to bump :version in cl-stack-tzdata.asd")
+          path.write_text(text2)
+          PY
+
+      - name: Open PR if data changed
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "chore: update tzdata"
+          title: "chore: update tzdata"
+          body: |
+            Automated rebuild of `data/` from the latest IANA tzdb release.
+
+            - Download via cl-stack-http × http-backend-async × event-backend-libuv
+            - TZif via `zic -b fat` (full history + abbreviations)
+            - Alias map from tzdb `Link` lines
+            - Abbreviation index regenerated
+          branch: cursor/tzdata-update
+          delete-branch: true

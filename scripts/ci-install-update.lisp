@@ -37,10 +37,7 @@
 (call-with-ci-muffles
  (lambda ()
    (cl-repo:ensure-systems '("cl-stack-http" "http-backend-async")
-     :with '("event-backend-libuv" "cl-stack-ssl")
-     :sources '(("babel" :ql)
-                ("trivial-features" :ql)
-                ("cl-unicode" :ql)))
+     :with '("event-backend-libuv" "cl-stack-ssl"))
    (ci-record-installed-version "cl-stack-ssl" "CL_STACK_SSL_VERSION")))
 
 (format t "~&; ci: install phase done~%")

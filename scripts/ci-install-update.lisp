@@ -36,8 +36,10 @@
 
 (call-with-ci-muffles
  (lambda ()
+   ;; http2 is an optional dep of http-backend-async (its :ci :with); without it
+   ;; the default :http-version :auto errors "http2 system not loadable".
    (cl-repo:ensure-systems '("cl-stack-http" "http-backend-async")
-     :with '("event-backend-libuv" "cl-stack-ssl"))
+     :with '("event-backend-libuv" "cl-stack-ssl" "http2"))
    (ci-record-installed-version "cl-stack-ssl" "CL_STACK_SSL_VERSION")))
 
 (format t "~&; ci: install phase done~%")

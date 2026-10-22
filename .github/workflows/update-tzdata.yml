@@ -119,7 +119,7 @@ jobs:
           PY
 
       - name: Open PR if data changed
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: "chore: update tzdata"
           title: "chore: update tzdata"

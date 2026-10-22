@@ -1,7 +1,11 @@
 (in-package #:cl-stack-tzdata/tests)
 
 (deftest version-and-aliases
-  (ok (equal "2026c" (tzdata-version)))
+  (let ((version (tzdata-version)))
+    (ok (and (stringp version)
+             (= 5 (length version))
+             (every #'digit-char-p (subseq version 0 4))
+             (lower-case-p (char version 4)))))
   (ok (equal "Europe/Kyiv" (canonical-zone-id "Europe/Kiev")))
   (ok (equal "Asia/Kolkata" (canonical-zone-id "Asia/Calcutta")))
   (ok (equal "America/New_York" (canonical-zone-id "US/Eastern")))

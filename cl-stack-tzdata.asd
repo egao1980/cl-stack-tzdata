@@ -1,5 +1,5 @@
 (defsystem "cl-stack-tzdata"
-  :version "2026.3.0"
+  :version "2026.5.0"
   :description "IANA tzdb as a Lisp-loadable package (TZif + aliases + abbreviation index)"
   :author "egao1980"
   :license "MIT"

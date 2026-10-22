@@ -1,5 +1,5 @@
 ;; alias -> canonical zone id (generated from tzdb Link lines)
-;; tzdb release: 2026c
+;; tzdb release: 2026e
 (
 ("Africa/Accra" . "Africa/Abidjan")
 ("Africa/Addis_Ababa" . "Africa/Nairobi")
@@ -135,7 +135,6 @@
 ("Brazil/East" . "America/Sao_Paulo")
 ("Brazil/West" . "America/Manaus")
 ("CET" . "Europe/Brussels")
-("CST6CDT" . "America/Chicago")
 ("Canada/Atlantic" . "America/Halifax")
 ("Canada/Central" . "America/Winnipeg")
 ("Canada/Eastern" . "America/Toronto")
@@ -149,7 +148,6 @@
 ("Cuba" . "America/Havana")
 ("EET" . "Europe/Athens")
 ("EST" . "America/Panama")
-("EST5EDT" . "America/New_York")
 ("Egypt" . "Africa/Cairo")
 ("Eire" . "Europe/Dublin")
 ("Etc/GMT+0" . "Etc/GMT")
@@ -211,7 +209,6 @@
 ("Libya" . "Africa/Tripoli")
 ("MET" . "Europe/Brussels")
 ("MST" . "America/Phoenix")
-("MST7MDT" . "America/Denver")
 ("Mexico/BajaNorte" . "America/Tijuana")
 ("Mexico/BajaSur" . "America/Mazatlan")
 ("Mexico/General" . "America/Mexico_City")
@@ -219,7 +216,6 @@
 ("NZ-CHAT" . "Pacific/Chatham")
 ("Navajo" . "America/Denver")
 ("PRC" . "Asia/Shanghai")
-("PST8PDT" . "America/Los_Angeles")
 ("Pacific/Chuuk" . "Pacific/Port_Moresby")
 ("Pacific/Enderbury" . "Pacific/Kanton")
 ("Pacific/Funafuti" . "Pacific/Tarawa")

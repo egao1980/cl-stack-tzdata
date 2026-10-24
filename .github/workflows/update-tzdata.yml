@@ -121,6 +121,7 @@ jobs:
       - name: Open PR if data changed
         uses: peter-evans/create-pull-request@v8
         with:
+          token: ${{ secrets.TZDATA_PR_TOKEN }}
           commit-message: "chore: update tzdata"
           title: "chore: update tzdata"
           body: |

@@ -1,5 +1,5 @@
 ;; alias -> canonical zone id (generated from tzdb Link lines)
-;; tzdb release: 2026e
+;; tzdb release: 2026f
 (
 ("Africa/Accra" . "Africa/Abidjan")
 ("Africa/Addis_Ababa" . "Africa/Nairobi")

@@ -1,6 +1,6 @@
 ;;;; Mine data/zoneinfo/** transitions into data/abbreviations.sexp.
-;;;; Run after scripts/update-tzdata.lisp. Pure-CL; only needs cl-stack-tzdata
-;;;; on CL_SOURCE_REGISTRY (the checkout itself).
+;;;; Run after scripts/update-tzdata.lisp from the checkout root. Pure-CL; only
+;;;; needs cl-stack-tzdata (the checkout itself).
 
 (setf *debugger-hook*
       (lambda (c h)
@@ -9,6 +9,9 @@
         (uiop:quit 1)))
 
 (require :asdf)
+;; The checkout is the only system needed; do not rely on an inherited registry.
+(asdf:initialize-source-registry
+ `(:source-registry (:directory ,(uiop:getcwd)) :inherit-configuration))
 (asdf:load-system "cl-stack-tzdata")
 
 (in-package #:cl-stack-tzdata)

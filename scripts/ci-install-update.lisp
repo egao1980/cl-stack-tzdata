@@ -22,6 +22,15 @@
   #-sbcl
   (funcall fn))
 
+;; setup-lisp no longer exports CL_SOURCE_REGISTRY: load the client from the
+;; OCI client tree (CL_REPOSITORY_DEST) alone, as the canned ci action does.
+(let ((dest (uiop:getenv "CL_REPOSITORY_DEST")))
+  (when (and dest (plusp (length dest)))
+    (asdf:initialize-source-registry
+     `(:source-registry
+       (:tree ,(uiop:ensure-directory-pathname (uiop:ensure-absolute-pathname dest (uiop:getcwd))))
+       :ignore-inherited-configuration))))
+
 (call-with-ci-muffles (lambda () (asdf:load-system "cl-repository-client")))
 
 (defun ci-record-installed-version (system env-var)

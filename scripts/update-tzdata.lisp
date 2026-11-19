@@ -1,19 +1,16 @@
 ;;;; Regenerate data/ from an IANA tzdb release.
 ;;;;
-;;;; Usage (CI — see .github/workflows/update-tzdata.yml):
-;;;;   uses: egao1980/cl-repository/.github/actions/setup-client@main
-;;;;   uses: egao1980/cl-repository/.github/actions/setup-roswell@main
-;;;;   ros -l scripts/ci-install-update.lisp -q
-;;;;   # stage cl-stack-ssl OpenSSL overlay (same as http-backend-dexador)
-;;;;   ros -l scripts/update-tzdata.lisp -q            ; latest release
-;;;;   ros -l scripts/update-tzdata.lisp -q -- 2026c   ; specific release
+;;;; Usage (CI: .github/workflows/update-tzdata.yml). cl-repo installs the
+;;;; cl-stack-tzdata/update dependency set and starts ros with the registry set:
+;;;;   cl-repo run --system cl-stack-tzdata/update -- ros -l scripts/update-tzdata.lisp -q            ; latest
+;;;;   cl-repo run --system cl-stack-tzdata/update -- ros -l scripts/update-tzdata.lisp -q -- 2026c   ; specific
 ;;;;
 ;;;; Env:
 ;;;;   INCLUDE_BACKZONE=1  also compile pre-1970 backzone data (default off)
 ;;;;
 ;;;; HTTP via cl-stack-http × http-backend-async × event-backend-libuv (dogfood).
 ;;;; External tools are the database build special case only: tar, zic.
-;;;; Assumes deps already installed (ci-install-update) and OpenSSL overlay staged.
+;;;; cl-stack-ssl loads its OpenSSL overlay at ASDF load (no LD_LIBRARY_PATH).
 ;;;;
 ;;;; Produces:
 ;;;;   data/VERSION            tzdb release id (e.g. 2026c)
@@ -43,25 +40,7 @@
   #-sbcl
   (funcall fn))
 
-;; setup-lisp no longer exports CL_SOURCE_REGISTRY: load the client from the
-;; OCI client tree (CL_REPOSITORY_DEST) alone, as the canned ci action does.
-(let ((dest (uiop:getenv "CL_REPOSITORY_DEST")))
-  (when (and dest (plusp (length dest)))
-    (asdf:initialize-source-registry
-     `(:source-registry
-       (:tree ,(uiop:ensure-directory-pathname (uiop:ensure-absolute-pathname dest (uiop:getcwd))))
-       :ignore-inherited-configuration))))
-
-(call-with-ci-muffles (lambda () (asdf:load-system "cl-repository-client")))
-(cl-repository-client/asdf-integration:configure-asdf-source-registry)
-(cl-repository-client/asdf-integration:load-system-init-files)
-
-(call-with-ci-muffles
- (lambda ()
-   (asdf:load-system "cl-stack-ssl")
-   (asdf:load-system "event-backend-libuv")
-   (asdf:load-system "http-backend-async")
-   (asdf:load-system "cl-stack-http")))
+(call-with-ci-muffles (lambda () (asdf:load-system "cl-stack-tzdata/update")))
 
 ;; Package-qualified forms must be top-level *after* the loads above (reader).
 (setf http-backend-async:*event-backend-maker*

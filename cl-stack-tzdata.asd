@@ -1,5 +1,5 @@
 (defsystem "cl-stack-tzdata"
-  :version "2026.6.0"
+  :version "2026.6.0.1"
   :description "IANA tzdb as a Lisp-loadable package (TZif + aliases + abbreviation index)"
   :author "egao1980"
   :license "MIT"
@@ -24,3 +24,13 @@
   :perform (test-op (o c)
              (unless (symbol-call :rove :run c)
                (error "tests failed for ~A" (component-name c)))))
+
+(defsystem "cl-stack-tzdata/update"
+  :description "Rebuild data/ from an IANA tzdb release (update workflow)"
+  :depends-on ("cl-stack-tzdata"
+               "cl-stack-pathlib"
+               "cl-stack-ssl"
+               "event-backend-libuv"
+               "http2"
+               "http-backend-async"
+               "cl-stack-http"))

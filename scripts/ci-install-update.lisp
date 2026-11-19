@@ -34,7 +34,12 @@
 (call-with-ci-muffles (lambda () (asdf:load-system "cl-repository-client")))
 
 (defun ci-record-installed-version (system env-var)
-  (let ((ver (cl-repo:installed-system-version system))
+  ;; cl-stack-ssl ships with the client (setup-client bootstrap tree), so
+  ;; ensure-systems does not install it again: fall back to the version of
+  ;; the system ASDF resolves.
+  (let ((ver (or (cl-repo:installed-system-version system)
+                 (let ((s (asdf:find-system system nil)))
+                   (and s (asdf:component-version s)))))
         (env (uiop:getenv "GITHUB_ENV")))
     (when (and ver env)
       (with-open-file (out env :direction :output :if-exists :append :if-does-not-exist :create)

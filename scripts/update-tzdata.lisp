@@ -2,8 +2,8 @@
 ;;;;
 ;;;; Usage (CI: .github/workflows/update-tzdata.yml). cl-repo installs the
 ;;;; cl-stack-tzdata/update dependency set and starts ros with the registry set:
-;;;;   cl-repo run --system cl-stack-tzdata/update -- ros -l scripts/update-tzdata.lisp -q            ; latest
-;;;;   cl-repo run --system cl-stack-tzdata/update -- ros -l scripts/update-tzdata.lisp -q -- 2026c   ; specific
+;;;;   cl-repo ros --system cl-stack-tzdata/update -l scripts/update-tzdata.lisp -q            ; latest
+;;;;   cl-repo ros --system cl-stack-tzdata/update -l scripts/update-tzdata.lisp -q -- 2026c   ; specific
 ;;;;
 ;;;; Env:
 ;;;;   INCLUDE_BACKZONE=1  also compile pre-1970 backzone data (default off)

@@ -28,7 +28,7 @@ IANA [tzdb](https://www.iana.org/time-zones) as a Lisp-loadable package for [cl-
 # CI: .github/workflows/update-tzdata.yml
 # Dogfoods cl-stack-http × http-backend-async × event-backend-libuv; zic/tar for compile.
 # cl-repo installs the cl-stack-tzdata/update dependency set and starts ros.
-cl-repo run --system cl-stack-tzdata/update -- ros -l scripts/update-tzdata.lisp -q [-- 2026f]
+cl-repo ros --system cl-stack-tzdata/update -l scripts/update-tzdata.lisp -q [-- 2026f]
 ros -l scripts/gen-abbreviations.lisp -q
 # Version: tzdb 2026f → 2026.6.0; a rebuild of the same release that changes data/
 cl-repo version 2026.6.0 --system cl-stack-tzdata      # new release

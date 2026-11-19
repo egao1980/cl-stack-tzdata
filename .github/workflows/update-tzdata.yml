@@ -3,7 +3,7 @@ name: Update tzdata
 # Rebuild data/ from the latest (or specified) IANA tzdb release.
 # Dogfoods cl-stack-http × http-backend-async × event-backend-libuv for the
 # download; zic/tar remain the database-build special case.
-# Deps via `cl-repo run` (cl-stack-tzdata/update in the .asd); version via
+# Deps via `cl-repo ros` (cl-stack-tzdata/update in the .asd); version via
 # `cl-repo version`.
 
 on:
@@ -51,7 +51,7 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends tzdata
 
       # cl-repo from the OCI client tree, as the canned cl-repository workflows
-      # call it. `run` installs the cl-stack-tzdata/update dependency set
+      # call it. `ros` installs the cl-stack-tzdata/update dependency set
       # (cl-stack-ssl loads its OpenSSL overlay itself) and starts ros with
       # the source registry configured.
       - name: Rebuild data/ from IANA
@@ -66,8 +66,8 @@ jobs:
           }
           ARGS=()
           [ -n "$TZDB_VERSION" ] && ARGS+=(-- "$TZDB_VERSION")
-          cl_repo run --system cl-stack-tzdata/update -- \
-            ros -l scripts/update-tzdata.lisp -q "${ARGS[@]}"
+          cl_repo ros --system cl-stack-tzdata/update \
+            -l scripts/update-tzdata.lisp -q "${ARGS[@]}"
 
       - name: Regenerate abbreviation index
         shell: bash

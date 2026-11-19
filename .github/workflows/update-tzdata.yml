@@ -3,8 +3,8 @@ name: Update tzdata
 # Rebuild data/ from the latest (or specified) IANA tzdb release.
 # Dogfoods cl-stack-http × http-backend-async × event-backend-libuv for the
 # download; zic/tar remain the database-build special case.
-# Bootstrap mirrors http-backend-async test.yml (setup-client / setup-roswell /
-# OpenSSL overlay staging).
+# Deps via `cl-repo run` (cl-stack-tzdata/update in the .asd); version via
+# `cl-repo version`.
 
 on:
   schedule:
@@ -50,73 +50,53 @@ jobs:
       - name: Install zic (database build special case)
         run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends tzdata
 
-      - name: cl-repo install update deps
-        shell: bash
-        run: ros -l scripts/ci-install-update.lisp -q
-
-      - name: Stage OpenSSL overlay
-        shell: bash
-        run: |
-          echo "${GITHUB_TOKEN}" | oras login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
-          mkdir -p /tmp/ssl-pull /tmp/ssl-native
-          : "${CL_STACK_SSL_VERSION:?CL_STACK_SSL_VERSION empty — ci-install-update must set GITHUB_ENV}"
-          REF="ghcr.io/egao1980/cl-systems/cl-stack-ssl:${CL_STACK_SSL_VERSION}"
-          ok=0
-          for attempt in 1 2 3 4 5; do
-            rm -rf /tmp/ssl-pull/* /tmp/ssl-native/*
-            if oras pull "${REF}" --platform linux/amd64 -o /tmp/ssl-pull; then
-              ok=1
-              break
-            fi
-            echo "oras pull attempt ${attempt} failed; sleep $((attempt * 4))s" >&2
-            sleep $((attempt * 4))
-          done
-          [ "$ok" = 1 ] || { echo "oras pull failed for ${REF}" >&2; exit 1; }
-          tar -xzf /tmp/ssl-pull/native-library.tar.gz -C /tmp/ssl-native
-          NAT="$(find /tmp/ssl-native -type d -name native | head -1)"
-          : "${NAT:?native/ not found in cl-stack-ssl overlay}"
-          echo "OPENSSL_NATIVE=${NAT}" >> "$GITHUB_ENV"
-          echo "LD_LIBRARY_PATH=${NAT}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
-          ls -la "${NAT}"
-
+      # cl-repo from the OCI client tree, as the canned cl-repository workflows
+      # call it. `run` installs the cl-stack-tzdata/update dependency set
+      # (cl-stack-ssl loads its OpenSSL overlay itself) and starts ros with
+      # the source registry configured.
       - name: Rebuild data/ from IANA
         shell: bash
         env:
-          INCLUDE_BACKZONE: ${{ inputs.include_backzone || 'false' }}
+          INCLUDE_BACKZONE: ${{ inputs.include_backzone == 'true' && '1' || '0' }}
+          TZDB_VERSION: ${{ inputs.version }}
         run: |
+          cl_repo() {
+            CL_REPOSITORY_CLIENT_DIR="$CL_REPOSITORY_DEST" \
+              ros +Q -- "${CL_REPOSITORY_CLIENT_DIR%/}/roswell/cl-repo.ros" "$@"
+          }
           ARGS=()
-          if [ -n "${{ inputs.version }}" ]; then
-            ARGS+=("${{ inputs.version }}")
-          fi
-          if [ "${#ARGS[@]}" -gt 0 ]; then
-            ros -l scripts/update-tzdata.lisp -q -- "${ARGS[@]}"
-          else
-            ros -l scripts/update-tzdata.lisp -q
-          fi
+          [ -n "$TZDB_VERSION" ] && ARGS+=(-- "$TZDB_VERSION")
+          cl_repo run --system cl-stack-tzdata/update -- \
+            ros -l scripts/update-tzdata.lisp -q "${ARGS[@]}"
 
       - name: Regenerate abbreviation index
         shell: bash
         run: ros -l scripts/gen-abbreviations.lisp -q
 
-      - name: Bump .asd :version from tzdb letter release
+      # tzdb 2026f -> 2026.6.0. A rebuild of the same release that changes
+      # data/ (newer zic, script fix) bumps the package revision: 2026.6.0.1.
+      - name: Set .asd :version
         shell: bash
         run: |
+          cl_repo() {
+            CL_REPOSITORY_CLIENT_DIR="$CL_REPOSITORY_DEST" \
+              ros +Q -- "${CL_REPOSITORY_CLIENT_DIR%/}/roswell/cl-repo.ros" "$@"
+          }
           VER="$(tr -d '[:space:]' < data/VERSION)"
           YEAR="${VER:0:4}"
           LETTER="${VER:4:1}"
           MINOR=$(( $(printf '%d' "'${LETTER}") - $(printf '%d' "'a") + 1 ))
-          ASDF_VER="${YEAR}.${MINOR}.0"
-          echo "tzdb=${VER} asdf=${ASDF_VER}"
-          python3 - <<PY
-          import pathlib, re
-          ver = "${ASDF_VER}"
-          path = pathlib.Path("cl-stack-tzdata.asd")
-          text = path.read_text()
-          text2, n = re.subn(r'(:version\s*)"[^"]*"', rf'\1"{ver}"', text, count=1)
-          if n != 1:
-              raise SystemExit("failed to bump :version in cl-stack-tzdata.asd")
-          path.write_text(text2)
-          PY
+          RELEASE="${YEAR}.${MINOR}.0"
+          # Last token only: a first load may print compile notes on stdout.
+          CUR="$(cl_repo version --system cl-stack-tzdata 2>/dev/null \
+                 | grep -oE '[0-9]+(\.[0-9]+)*$' | tail -n 1)"
+          echo "tzdb=${VER} release=${RELEASE} current=${CUR}"
+          if [ "$(echo "$CUR" | cut -d. -f1-3)" != "$RELEASE" ]; then
+            cl_repo version "$RELEASE" --system cl-stack-tzdata
+          elif [ -n "$(git status --porcelain -- data)" ]; then
+            cl_repo version --bump revision --system cl-stack-tzdata
+          fi
+          git diff -- cl-stack-tzdata.asd
 
       - name: Open PR if data changed
         uses: peter-evans/create-pull-request@v8
